@@ -1,6 +1,6 @@
 export default class ApiError extends Error{
 
-    constructor(message, status=400){
+    constructor(message, status=500){
         super(message),
         this.status = status
     }
