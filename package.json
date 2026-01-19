@@ -2,9 +2,11 @@
   "name": "smartshift",
   "version": "1.0.0",
   "description": "A smart application for allocating shift",
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "seed": "node src/seed.js"
   },
   "author": "Sourav Maji",
   "license": "ISC",
