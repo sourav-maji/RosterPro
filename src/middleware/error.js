@@ -1,4 +1,4 @@
-import { fail } from "../utils/response";
+import { fail } from "../utils/response.js";
 
 export default (err,req,res,next) =>{
     console.error(`Error : ${err.message}`);
