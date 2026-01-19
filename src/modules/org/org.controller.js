@@ -1,33 +1,37 @@
 import Organization from "./org.model.js";
-import ApiError from "../../utils/ApiError.js"
-import { ok, fail } from "../../utils/response";
-
-
+import ApiError from "../../utils/ApiError.js";
+import { ok, fail } from "../../utils/response.js";
 
 /**
  * Handle Mongo duplicate key error
  */
 
-const handleDup = (err)=>{
-    if(err.code === 11000){
-        return new ApiError(
-            message = "Organization with same name and contact email already exists",
-            status = 400
-        )
-    }
-    return err
-}
+const handleDup = (err) => {
+  if (err.code === 11000) {
+    return new ApiError(
+      (message =
+        "Organization with same name and contact email already exists"),
+      (status = 400),
+    );
+  }
+  return err;
+};
 
 // Create
 
-export const createOrg = async(req,res,next)=>{
-    try {
-        const org = await Organization.create(req.body)
-        return ok(res, org, "Organization created");
-    } catch (error) {
-        next(handleDup(err))
+export const createOrg = async (req, res, next) => {
+  try {
+    const { name, contactEmail } = req.body;
+    if (!name || !contactEmail || name === null || contactEmail === null) {
+      const error = new ApiError("Name or Contact Email is missing", 400);
+      return next(error);
     }
-}
+    const org = await Organization.create(req.body);
+    return ok(res, org, "Organization created", 201);
+  } catch (error) {
+    next(handleDup(error));
+  }
+};
 
 // LIST with basic filters
 export const listOrg = async (req, res, next) => {
@@ -69,11 +73,10 @@ export const getOrg = async (req, res, next) => {
 // UPDATE
 export const updateOrg = async (req, res, next) => {
   try {
-    const org = await Organization.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const org = await Organization.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!org) {
       throw new ApiError("Organization not found", 404);
@@ -94,7 +97,7 @@ export const deleteOrg = async (req, res, next) => {
       throw new ApiError("Organization not found", 404);
     }
 
-    return ok(res, null, "Organization deleted");
+    return ok(res, null, "Organization deleted",204);
   } catch (err) {
     next(err);
   }
