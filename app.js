@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import error from "./src/middleware/error.js";
+import orgRoutes from "./src/modules/org/org.routes.js";
 
 const app = express();
 
@@ -12,5 +13,10 @@ app.get("/", (req, res) => {
 });
 
 app.use(error);
+
+
+// Using routes from different modules
+
+app.use("api/org", orgRoutes)
 
 export default app;
