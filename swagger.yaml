@@ -1,0 +1,181 @@
+openapi: 3.0.3
+info:
+  title: RosterPro API
+  description: Multi-tenant rostering backend with ML scheduling
+  version: "1.0.0"
+
+servers:
+  - url: http://localhost:3000/api/v1
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+
+    Organization:
+      type: object
+      properties:
+        _id: { type: string }
+        name: { type: string }
+        contactEmail: { type: string }
+        type: { type: string, enum: [HOSPITAL, FACTORY, GENERIC] }
+
+    ShiftRequirement:
+      type: object
+      properties:
+        departmentId: { type: string }
+        shiftId: { type: string }
+        roleId: { type: string }
+        requiredCount: { type: integer }
+        effectiveFrom: { type: string, format: date }
+        effectiveTo: { type: string, format: date }
+
+    Allocation:
+      type: object
+      properties:
+        userId: { type: string }
+        shiftId: { type: string }
+        date: { type: string, format: date }
+        status: { type: string }
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: Success
+
+  /org:
+    get:
+      summary: List organizations
+      responses:
+        "200": { description: ok }
+
+    post:
+      summary: Create organization
+      responses:
+        "200": { description: ok }
+
+  /shifts:
+    get:
+      summary: List shifts
+      responses:
+        "200": { description: ok }
+
+  /shift-req:
+    post:
+      summary: Create shift requirement
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShiftRequirement"
+      responses:
+        "200": { description: ok }
+
+  /shift-req/bulk:
+    post:
+      summary: Bulk upsert requirements
+      responses:
+        "200": { description: ok }
+
+  /shift-req/department/{deptId}:
+    get:
+      summary: Get requirements by department
+      parameters:
+        - name: deptId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: ok }
+
+  /scheduler/preview:
+    post:
+      summary: Generate ML schedule preview
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                departmentId: { type: string }
+                date: { type: string }
+      responses:
+        "200": { description: ok }
+
+  /scheduler/save:
+    post:
+      summary: Save ML schedule to allocation
+      responses:
+        "200": { description: ok }
+
+  /alloc:
+    get:
+      summary: List allocations
+      parameters:
+        - name: departmentId
+          in: query
+          schema: { type: string }
+        - name: date
+          in: query
+          schema: { type: string }
+      responses:
+        "200": { description: ok }
+
+  /alloc/ml:
+    post:
+      summary: Save allocation from ML
+      responses:
+        "200": { description: ok }
+
+  /alloc/swap:
+    post:
+      summary: Swap user in allocation
+      responses:
+        "200": { description: ok }
+
+  /alloc/board:
+    get:
+      summary: Department board view
+      responses:
+        "200": { description: ok }
+
+  /alloc/calendar:
+    get:
+      summary: User calendar
+      responses:
+        "200": { description: ok }
+
+  /alloc/coverage:
+    get:
+      summary: Requirement vs actual
+      responses:
+        "200": { description: ok }

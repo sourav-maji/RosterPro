@@ -159,6 +159,19 @@ const seed = async () => {
     "SHIFT_REQ_UPDATE",
     "SHIFT_REQ_DELETE",
     "SHIFT_REQ_BULK",
+
+    // ----- Allocation -----
+    "ALLOC_VIEW",
+    "ALLOC_CREATE",
+    "ALLOC_UPDATE",
+    "ALLOC_DELETE",
+    "ALLOC_BULK",
+    "ALLOC_SWAP",
+
+    // ----- Scheduler -----
+    "SCHEDULER_GENERATE",
+    "SCHEDULER_PREVIEW",
+    "SCHEDULER_SAVE",
   ];
 
   // Create SYSTEM permissions owned by platform (organizationId = null)
