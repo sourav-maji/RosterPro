@@ -5,7 +5,7 @@ const schema = new mongoose.Schema(
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
-      required: true,
+      default: null,
     },
 
     name: {
