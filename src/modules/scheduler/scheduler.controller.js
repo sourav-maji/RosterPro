@@ -3,45 +3,73 @@ import {
   callPythonScheduler,
 } from "./scheduler.service.js";
 
-import { ok } from "../../utils/response.js";
 import Allocation from "../alloc/allocation.model.js";
 import { mapMlResultToAlloc } from "../alloc/alloc.mapper.js";
+import ApiError from "../../utils/ApiError.js";
+import { ok } from "../../utils/response.js";
 
+import ScheduleRun from "./scheduleRun.model.js";
 
 /* --------------------------------------------------
    GENERATE PREVIEW (NO SAVE)
 -------------------------------------------------- */
 export const generatePreview = async (req, res, next) => {
   try {
-    const { departmentId, date } = req.body;
+    const { departmentId, startDate } = req.body;
 
-    const json = await buildSchedulerJson({
+    if (!departmentId || !startDate) {
+      throw new ApiError("departmentId and startDate required", 400);
+    }
+
+    const { payload, meta } = await buildSchedulerJson({
       organizationId: req.user.organizationId,
       departmentId,
-      startDate: date,
+      startDate,
     });
 
-    const result = await callPythonScheduler(json);
+    const result = await callPythonScheduler(payload);
+
+    try {
+      const unmetCount = result?.violations
+        ? Object.values(result.violations).reduce((a, b) => a + b, 0)
+        : 0;
+    } catch (error) {
+      console.log(error);
+    }
+    try {
+      await ScheduleRun.create({
+        organizationId: req.user.organizationId,
+        departmentId,
+        weekStart: startDate,
+        inputPayload: payload,
+        outputPayload: result,
+        status: result.status,
+        unmetCount,
+        triggeredBy: req.user._id,
+      });
+    } catch (error) {
+      console.log(error);
+    }
 
     return ok(res, {
-      input: json,
+      payload,
       result,
+      meta,
     });
   } catch (err) {
     next(err);
   }
 };
 
-
 /* --------------------------------------------------
    SAVE SCHEDULE TO ALLOCATION
 -------------------------------------------------- */
 export const saveSchedule = async (req, res, next) => {
   try {
-    const { result, departmentId, meta } = req.body;
+    const { result, meta, departmentId } = req.body;
 
-    if (!result?.schedule) {
-      throw new ApiError("Invalid result", 400);
+    if (!result?.schedule || !meta) {
+      throw new ApiError("Invalid scheduler result", 400);
     }
 
     const records = mapMlResultToAlloc({
@@ -52,13 +80,14 @@ export const saveSchedule = async (req, res, next) => {
       userMap: meta.userMap,
     });
 
-    // Remove old for those dates
-    const dates = [...new Set(records.map(r => r.date))];
+    const dates = [...new Set(records.map((r) => r.date))];
 
+    // 🔥 V1 RULE: overwrite ML allocations only
     await Allocation.deleteMany({
       organizationId: req.user.organizationId,
       departmentId,
       date: { $in: dates },
+      source: "ML",
     });
 
     const saved = await Allocation.insertMany(records);
