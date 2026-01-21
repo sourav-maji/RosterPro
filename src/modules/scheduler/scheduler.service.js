@@ -4,25 +4,24 @@ import Shift from "../shifts/shift.model.js";
 import User from "../users/user.model.js";
 import Role from "../roles/role.model.js";
 import ShiftReq from "../shiftReq/shiftReq.model.js";
-
 import ApiError from "../../utils/ApiError.js";
 
 /* --------------------------------------------------
-   BUILD JSON FOR PYTHON
+   BUILD JSON FOR PYTHON SCHEDULER
 -------------------------------------------------- */
 export const buildSchedulerJson = async ({
   organizationId,
   departmentId,
   startDate,
 }) => {
-  // 1️⃣ Days (Mon-Sun for now)
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  // 2️⃣ Shifts
-  const shifts = await Shift.find({
-    organizationId,
-    departmentId,
-  });
+  /* ---------------- SHIFTS ---------------- */
+  const shifts = await Shift.find({ organizationId, departmentId });
+
+  if (!shifts.length) {
+    throw new ApiError("No shifts configured for department", 400);
+  }
 
   const shiftMap = {};
   const shiftHours = {};
@@ -32,15 +31,19 @@ export const buildSchedulerJson = async ({
     shiftHours[s.name] = s.durationHours || 8;
   }
 
-  // 3️⃣ Staff
+  /* ---------------- STAFF ---------------- */
   const users = await User.find({
     organizationId,
     departmentId,
     isActive: true,
   }).populate("roleId");
 
+  if (!users.length) {
+    throw new ApiError("No active users in department", 400);
+  }
+
   const staff = users.map((u) => ({
-    name: String(u._id),
+    id: String(u._id),
     role: u.roleId?.code || "UNKNOWN",
   }));
 
@@ -49,7 +52,7 @@ export const buildSchedulerJson = async ({
     userMap[String(u._id)] = String(u._id);
   }
 
-  // 4️⃣ Requirements (date based)
+  /* ---------------- REQUIREMENTS ---------------- */
   const reqs = await ShiftReq.find({
     organizationId,
     departmentId,
@@ -57,16 +60,19 @@ export const buildSchedulerJson = async ({
     effectiveTo: { $gte: startDate },
   }).populate("roleId shiftId");
 
+  if (!reqs.length) {
+    throw new ApiError("No shift requirements found for date", 400);
+  }
+
   const requirements = {};
 
   for (const r of reqs) {
     const shiftName = r.shiftId.name;
     if (!requirements[shiftName]) requirements[shiftName] = {};
-
     requirements[shiftName][r.roleId.code] = r.requiredCount;
   }
 
-  // 5️⃣ Role Policies (simple defaults)
+  /* ---------------- ROLE POLICIES ---------------- */
   const roles = await Role.find({
     organizationId: { $in: [null, organizationId] },
   });
@@ -75,26 +81,28 @@ export const buildSchedulerJson = async ({
   const maxHours = {};
 
   for (const role of roles) {
-    maxShifts[role.code] = 5;
-    maxHours[role.code] = 48;
+    maxShifts[role.code] = 5; // default v1
+    maxHours[role.code] = 48; // default v1
   }
 
   return {
-    days,
-    shifts: shiftHours,
-    requirements,
-    staff,
+    payload: {
+      days,
+      shifts: shiftHours,
+      requirements,
+      staff,
 
-    unavailability: {}, // later from leave module
-    preferred_holidays: {},
+      // V2 hooks
+      unavailability: {},
+      preferred_holidays: {},
 
-    max_shifts_per_week: maxShifts,
-    max_weekly_hours: maxHours,
+      max_shifts_per_week: maxShifts,
+      max_weekly_hours: maxHours,
+      min_rest_hours: 12,
+    },
 
-    min_rest_hours: 12,
-
-    // meta for saving
-    __meta: {
+    // Used ONLY by Node after ML returns
+    meta: {
       shiftMap,
       userMap,
     },
@@ -102,18 +110,26 @@ export const buildSchedulerJson = async ({
 };
 
 /* --------------------------------------------------
-   CALL PYTHON SERVICE
+   CALL PYTHON SCHEDULER SERVICE
 -------------------------------------------------- */
-export const callPythonScheduler = async (json) => {
+export const callPythonScheduler = async (payload) => {
   try {
-    const url = process.env.SCHEDULER_URL || "http://localhost:5000/schedule";
+    const url =
+      process.env.SCHEDULER_URL || "http://localhost:8000/schedule/weekly";
 
-    const res = await axios.post(url, json, {
-      timeout: 30000,
+    const res = await axios.post(url, payload, {
+      timeout: 30_000,
+      headers: {
+        "x-scheduler-key": process.env.SCHEDULER_API_KEY,
+        "Content-Type": "application/json",
+      },
     });
 
     return res.data;
   } catch (err) {
-    throw new ApiError("Scheduler service error: " + err.message, 500);
+    throw new ApiError(
+      "Scheduler service error: " + (err.response?.data?.detail || err.message),
+      500,
+    );
   }
 };
