@@ -116,6 +116,7 @@ const seed = async () => {
     "SCHEDULER_GENERATE",
     "SCHEDULER_PREVIEW",
     "SCHEDULER_SAVE",
+    "SCHEDULER_VIEW",
   ];
 
   for (const p of tenantPerms) {

@@ -14,6 +14,8 @@ import shiftReqRoutes from "./src/modules/shiftReq/shiftReq.routes.js";
 import allocRoutes from "./src/modules/alloc/alloc.routes.js";
 import schedulerRoutes from "./src/modules/scheduler/scheduler.routes.js";
 
+import schedulerRunRoutes from "./src/modules/scheduler/scheduleRun.routes.js";
+
 // Swagger
 import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
@@ -47,6 +49,8 @@ app.use("/api/v1/shifts", shiftRoutes);
 app.use("/api/v1/shift-req", shiftReqRoutes);
 app.use("/api/v1/alloc", allocRoutes);
 app.use("/api/v1/scheduler", schedulerRoutes);
+
+app.use("/api/v1/scheduler", schedulerRunRoutes);
 
 // --------------------------------------------------
 // Swagger UI  (must be BEFORE 404)
