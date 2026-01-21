@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.0.4
 info:
   title: SmartShift / RosterPro API
   version: "1.0.0"
@@ -28,9 +28,7 @@ components:
         message: { type: string }
         data: { type: object }
 
-    IdParam:
-      type: string
-
+    # ---------- AUTH ----------
     LoginRequest:
       type: object
       required: [email, password]
@@ -38,6 +36,7 @@ components:
         email: { type: string }
         password: { type: string }
 
+    # ---------- MASTERS ----------
     Organization:
       type: object
       properties:
@@ -85,10 +84,59 @@ components:
         departmentId: { type: string }
         date: { type: string, format: date }
 
+    # ---------- RBAC ----------
+    PermissionCreate:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          type: string
+          example: USER_VIEW
+        name:
+          type: string
+          example: View Users
+        module:
+          type: string
+          example: CORE
+
+    RoleCreate:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          type: string
+          example: MANAGER
+        name:
+          type: string
+          example: Department Manager
+        organizationId:
+          type: string
+
+    RolePermissionAssign:
+      type: object
+      required: [roleId, permissionId]
+      properties:
+        roleId: { type: string }
+        permissionId: { type: string }
+
+    RolePermissionBulk:
+      type: object
+      required: [roleId, permissionIds]
+      properties:
+        roleId: { type: string }
+        permissionIds:
+          type: array
+          items: { type: string }
+
+    Error403:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string, example: Permission denied }
+
 paths:
 
   # ================= AUTH =================
-
   /auth/login:
     post:
       tags: [Auth]
@@ -105,19 +153,15 @@ paths:
     post:
       tags: [Auth]
       summary: Refresh token
-      responses:
-        "200": { description: success }
+      responses: { "200": { description: success } }
 
   /auth/logout:
     post:
       tags: [Auth]
       summary: Logout
-      responses:
-        "200": { description: success }
-
+      responses: { "200": { description: success } }
 
   # ================= ORGANIZATION =================
-
   /org:
     get:
       tags: [Organization]
@@ -145,9 +189,7 @@ paths:
           schema: { type: string }
       responses: { "200": { description: ok } }
 
-
   # ================= USERS =================
-
   /users:
     get:
       tags: [Users]
@@ -173,7 +215,7 @@ paths:
   /users/{id}:
     get:
       tags: [Users]
-      summary: Get user by id
+      summary: Get user
       parameters:
         - name: id
           in: path
@@ -212,18 +254,14 @@ paths:
           schema: { type: string }
       responses: { "200": { description: ok } }
 
-
   # ================= DEPARTMENTS =================
-
   /departments:
     get:
       tags: [Departments]
-      summary: List departments
       responses: { "200": { description: ok } }
 
     post:
       tags: [Departments]
-      summary: Create department
       requestBody:
         content:
           application/json:
@@ -234,7 +272,6 @@ paths:
   /departments/{id}:
     put:
       tags: [Departments]
-      summary: Update department
       parameters:
         - name: id
           in: path
@@ -244,37 +281,25 @@ paths:
 
     delete:
       tags: [Departments]
-      summary: Delete department
       parameters:
         - name: id
           in: path
           required: true
-          schema: { type: string }
       responses: { "200": { description: ok } }
 
   /departments/{id}/users:
     get:
       tags: [Departments]
-      summary: Users of department
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
       responses: { "200": { description: ok } }
 
-
   # ================= SHIFTS =================
-
   /shifts:
     get:
       tags: [Shifts]
-      summary: List shifts
       responses: { "200": { description: ok } }
 
     post:
       tags: [Shifts]
-      summary: Create shift
       requestBody:
         content:
           application/json:
@@ -285,36 +310,26 @@ paths:
   /shifts/{id}:
     put:
       tags: [Shifts]
-      summary: Update shift
       parameters:
         - name: id
           in: path
-          required: true
-          schema: { type: string }
       responses: { "200": { description: ok } }
 
     delete:
       tags: [Shifts]
-      summary: Delete shift
       parameters:
         - name: id
           in: path
-          required: true
-          schema: { type: string }
       responses: { "200": { description: ok } }
 
-
   # ================= SHIFT REQUIREMENT =================
-
   /shift-req:
     get:
       tags: [Shift Requirement]
-      summary: List all requirements
       responses: { "200": { description: ok } }
 
     post:
       tags: [Shift Requirement]
-      summary: Create requirement
       requestBody:
         content:
           application/json:
@@ -325,63 +340,116 @@ paths:
   /shift-req/bulk:
     post:
       tags: [Shift Requirement]
-      summary: Bulk upsert
       responses: { "200": { description: ok } }
 
   /shift-req/{id}:
     put:
       tags: [Shift Requirement]
-      summary: Update requirement
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
       responses: { "200": { description: ok } }
 
     delete:
       tags: [Shift Requirement]
-      summary: Delete requirement
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
       responses: { "200": { description: ok } }
 
   /shift-req/department/{deptId}:
     get:
       tags: [Shift Requirement]
-      summary: By department
-      parameters:
-        - name: deptId
-          in: path
-          required: true
-          schema: { type: string }
       responses: { "200": { description: ok } }
 
   /shift-req/department/{deptId}/shift/{shiftId}:
     get:
       tags: [Shift Requirement]
-      summary: Particular shift of department
-      parameters:
-        - name: deptId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: shiftId
-          in: path
-          required: true
-          schema: { type: string }
       responses: { "200": { description: ok } }
 
+  # ================= RBAC MODULES =================
+
+  /permissions:
+    post:
+      tags: [Permissions]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionCreate"
+      responses:
+        "200": { description: ok }
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error403"
+
+    get:
+      tags: [Permissions]
+      responses: { "200": { description: ok } }
+
+  /permissions/{id}:
+    put:
+      tags: [Permissions]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionCreate"
+      responses: { "200": { description: ok } }
+
+  /roles:
+    post:
+      tags: [Roles]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleCreate"
+      responses: { "200": { description: ok } }
+
+    get:
+      tags: [Roles]
+      responses: { "200": { description: ok } }
+
+  /roles/{id}:
+    put:
+      tags: [Roles]
+      responses: { "200": { description: ok } }
+
+    delete:
+      tags: [Roles]
+      responses: { "200": { description: ok } }
+
+  /role-permission:
+    post:
+      tags: [RolePermission]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RolePermissionAssign"
+      responses: { "200": { description: ok } }
+
+  /role-permission/bulk:
+    post:
+      tags: [RolePermission]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RolePermissionBulk"
+      responses: { "200": { description: ok } }
+
+  /role-permission/{id}:
+    delete:
+      tags: [RolePermission]
+      responses: { "200": { description: ok } }
+
+  /role-permission/role/{roleId}:
+    get:
+      tags: [RolePermission]
+      responses: { "200": { description: ok } }
 
   # ================= SCHEDULER =================
-
   /scheduler/preview:
     post:
       tags: [Scheduler]
-      summary: Generate ML schedule
       requestBody:
         content:
           application/json:
@@ -392,92 +460,50 @@ paths:
   /scheduler/save:
     post:
       tags: [Scheduler]
-      summary: Save ML result
       responses: { "200": { description: ok } }
 
-
   # ================= ALLOCATION =================
-
   /alloc:
     get:
       tags: [Allocation]
-      summary: List allocations
       parameters:
         - name: departmentId
           in: query
-          schema: { type: string }
         - name: date
           in: query
-          schema: { type: string, format: date }
       responses: { "200": { description: ok } }
 
   /alloc/manual:
     post:
       tags: [Allocation]
-      summary: Manual assign
       responses: { "200": { description: ok } }
 
   /alloc/ml:
     post:
       tags: [Allocation]
-      summary: Save from ML
       responses: { "200": { description: ok } }
 
   /alloc/swap:
     post:
       tags: [Allocation]
-      summary: Swap user
       responses: { "200": { description: ok } }
 
   /alloc/{id}:
     delete:
       tags: [Allocation]
-      summary: Delete allocation
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
       responses: { "200": { description: ok } }
 
   /alloc/board:
     get:
       tags: [Allocation]
-      summary: Department board
-      parameters:
-        - name: departmentId
-          in: query
-          schema: { type: string }
-        - name: date
-          in: query
-          schema: { type: string, format: date }
       responses: { "200": { description: ok } }
 
   /alloc/calendar:
     get:
       tags: [Allocation]
-      summary: User calendar
-      parameters:
-        - name: userId
-          in: query
-          schema: { type: string }
-        - name: from
-          in: query
-          schema: { type: string, format: date }
-        - name: to
-          in: query
-          schema: { type: string, format: date }
       responses: { "200": { description: ok } }
 
   /alloc/coverage:
     get:
       tags: [Allocation]
-      summary: Requirement vs actual
-      parameters:
-        - name: departmentId
-          in: query
-          schema: { type: string }
-        - name: date
-          in: query
-          schema: { type: string, format: date }
       responses: { "200": { description: ok } }

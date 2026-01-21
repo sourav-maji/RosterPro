@@ -1,136 +1,185 @@
 import Organization from "./org.model.js";
 import ApiError from "../../utils/ApiError.js";
-import { ok, fail } from "../../utils/response.js";
+import { ok } from "../../utils/response.js";
 
-/**
- * Handle Mongo duplicate key error
- */
+/* ======================================================
+   HELPERS
+====================================================== */
+const isPlatform = (req) => req.user && req.user.roleCode === "PLATFORM_ADMIN";
 
-const handleDup = (err) => {
-  if (err.code === 11000) {
-    return new ApiError(
-      (message =
-        "Organization with same name and contact email already exists"),
-      (status = 400),
-    );
-  }
-  return err;
-};
+const isOwnOrg = (req, orgId) =>
+  req.user && String(req.user.organizationId) === String(orgId);
 
-// Create
-
+/* ======================================================
+   CREATE ORG – PUBLIC BUT SAFE
+====================================================== */
 export const createOrg = async (req, res, next) => {
   try {
     const { name, contactEmail } = req.body;
-    if (!name || !contactEmail || name === null || contactEmail === null) {
-      const error = new ApiError("Name or Contact Email is missing", 400);
-      return next(error);
-    }
-    const org = await Organization.create(req.body);
-    return ok(res, org, "Organization created", 201);
-  } catch (error) {
-    next(handleDup(error));
-  }
-};
 
-// LIST with basic filters
-export const listOrg = async (req, res, next) => {
-  try {
-    const { status, type, search } = req.query;
-
-    const filter = {};
-
-    if (status) filter.status = status;
-    if (type) filter.type = type;
-
-    if (search) {
-      filter.name = { $regex: search, $options: "i" };
-    }
-
-    const data = await Organization.find(filter).sort({ createdAt: -1 });
-
-    return ok(res, data);
-  } catch (err) {
-    next(err);
-  }
-};
-
-// GET BY ID
-export const getOrg = async (req, res, next) => {
-  try {
-    const org = await Organization.findById(req.params.id);
-
-    if (!org) {
-      throw new ApiError("Organization not found", 404);
-    }
-
-    return ok(res, org);
-  } catch (err) {
-    next(err);
-  }
-};
-
-// UPDATE
-export const updateOrg = async (req, res, next) => {
-  try {
-    const org = await Organization.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
+    const exists = await Organization.findOne({
+      name: name?.toLowerCase(),
+      contactEmail: contactEmail?.toLowerCase(),
     });
 
-    if (!org) {
-      throw new ApiError("Organization not found", 404);
+    if (exists) {
+      throw new ApiError("Organization already exists", 400);
     }
 
-    return ok(res, org, "Organization updated");
-  } catch (err) {
-    next(handleDup(err));
-  }
-};
+    const org = await Organization.create({
+      ...req.body,
+      name: name?.toLowerCase(),
+      contactEmail: contactEmail?.toLowerCase(),
+      status: "ONBOARD",
+      isActive: true,
+      createdBy: req.user?.id || null,
+    });
 
-// DELETE
-export const deleteOrg = async (req, res, next) => {
-  try {
-    const org = await Organization.findByIdAndDelete(req.params.id);
-
-    if (!org) {
-      throw new ApiError("Organization not found", 404);
-    }
-
-    return ok(res, null, "Organization deleted",204);
+    return ok(res, org, "Organization created");
   } catch (err) {
     next(err);
   }
 };
 
-// MY ORG (for logged-in user)
-export const myOrg = async (req, res, next) => {
+/* ======================================================
+   LIST ORG – PLATFORM OR OWN ONLY
+====================================================== */
+export const listOrg = async (req, res, next) => {
   try {
-    const org = await Organization.findById(req.user.organizationId);
+    let filter = {};
 
-    if (!org) {
-      throw new ApiError("Organization not found", 404);
+    // If logged in tenant → only own
+    if (req.user && !isPlatform(req)) {
+      filter._id = req.user.organizationId;
     }
 
-    return ok(res, org);
+    const orgs = await Organization.find(filter).sort({ createdAt: -1 });
+
+    return ok(res, orgs);
   } catch (err) {
     next(err);
   }
 };
 
-// COUNT
+/* ======================================================
+   COUNT
+====================================================== */
 export const countOrg = async (req, res, next) => {
   try {
+    if (!isPlatform(req)) {
+      throw new ApiError("Only platform can count organizations", 403);
+    }
+
     const count = await Organization.countDocuments();
+
     return ok(res, { count });
   } catch (err) {
     next(err);
   }
 };
 
-// TOGGLE ACTIVE
+/* ======================================================
+   GET BY ID
+====================================================== */
+export const getOrg = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!isPlatform(req) && !isOwnOrg(req, id)) {
+      throw new ApiError("Access denied", 403);
+    }
+
+    const org = await Organization.findById(id);
+
+    if (!org) throw new ApiError("Organization not found", 404);
+
+    return ok(res, org);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* ======================================================
+   UPDATE
+====================================================== */
+export const updateOrg = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!isPlatform(req) && !isOwnOrg(req, id)) {
+      throw new ApiError("Access denied", 403);
+    }
+
+    // Tenant cannot change critical fields
+    if (!isPlatform(req)) {
+      delete req.body.status;
+      delete req.body.isActive;
+    }
+
+    const org = await Organization.findByIdAndUpdate(
+      id,
+      {
+        ...req.body,
+        updatedBy: req.user?.id || null,
+      },
+      { new: true, runValidators: true },
+    );
+
+    if (!org) throw new ApiError("Organization not found", 404);
+
+    return ok(res, org, "Organization updated");
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* ======================================================
+   DELETE – PLATFORM ONLY
+====================================================== */
+export const deleteOrg = async (req, res, next) => {
+  try {
+    if (!isPlatform(req)) {
+      throw new ApiError("Only platform can delete org", 403);
+    }
+
+    const org = await Organization.findByIdAndDelete(req.params.id);
+
+    if (!org) throw new ApiError("Organization not found", 404);
+
+    return ok(res, null, "Organization deleted");
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* ======================================================
+   MY ORG
+====================================================== */
+export const myOrg = async (req, res, next) => {
+  try {
+    if (!req.user?.organizationId) {
+      throw new ApiError("No organization linked", 400);
+    }
+
+    const org = await Organization.findById(req.user.organizationId);
+
+    if (!org) throw new ApiError("Organization not found", 404);
+
+    return ok(res, org);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* ======================================================
+   TOGGLE ACTIVE – PLATFORM ONLY
+====================================================== */
 export const toggleActive = async (req, res, next) => {
   try {
+    if (!isPlatform(req)) {
+      throw new ApiError("Only platform can toggle", 403);
+    }
+
     const org = await Organization.findById(req.params.id);
 
     if (!org) throw new ApiError("Organization not found", 404);

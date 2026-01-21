@@ -1,6 +1,5 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-
 import connect from "./config/db.js";
 
 import Organization from "./modules/org/org.model.js";
@@ -13,11 +12,10 @@ import RolePermission from "./modules/roles/rolePermission.model.js";
 
 const seed = async () => {
   await connect();
-
-  console.log("Seeding...");
+  console.log("Seeding SAFE GOD-MODE setup...");
 
   /* =====================================================
-     1️⃣ PLATFORM ROLE
+     1️⃣ PLATFORM ROLE (GOD MODE)
   ===================================================== */
   const platformRole = await Role.findOneAndUpdate(
     { code: "PLATFORM_ADMIN", organizationId: null },
@@ -26,11 +24,24 @@ const seed = async () => {
   );
 
   /* =====================================================
-     2️⃣ PLATFORM PERMISSIONS
+     2️⃣ PLATFORM-ONLY PERMISSIONS
+     (only platform should have these)
   ===================================================== */
-  const platformPerms = ["ORG_CREATE", "ORG_VIEW", "ORG_UPDATE"];
+  const platformOnlyPerms = [
+    "ORG_CREATE",
+    "ORG_UPDATE",
+    "ORG_LIST",
+    "ORG_VIEW",
 
-  for (const p of platformPerms) {
+    "TENANT_ONBOARD",
+    "TENANT_SUSPEND",
+
+    "AUDIT_VIEW",
+    "SYSTEM_CONFIG",
+    "TENANT_IMPERSONATE",
+  ];
+
+  for (const p of platformOnlyPerms) {
     const perm = await Permission.findOneAndUpdate(
       { code: p, organizationId: null },
       {
@@ -42,22 +53,88 @@ const seed = async () => {
       { upsert: true, new: true },
     );
 
+    // Give ONLY to platform role
     await RolePermission.findOneAndUpdate(
-      {
-        roleId: platformRole._id,
-        permissionId: perm._id,
-      },
+      { roleId: platformRole._id, permissionId: perm._id },
       { organizationId: null },
       { upsert: true },
     );
   }
 
   /* =====================================================
-     3️⃣ PLATFORM ADMIN USER
+     3️⃣ CORE TENANT PERMISSIONS
+     (safe for tenant admins)
   ===================================================== */
-  let adminUser = await User.findOne({
-    email: process.env.ADMIN_EMAIL,
-  });
+  const tenantPerms = [
+    // ---- Departments ----
+    "DEPARTMENT_CREATE",
+    "DEPARTMENT_VIEW",
+    "DEPARTMENT_UPDATE",
+    "DEPARTMENT_DELETE",
+    "DEPARTMENT_VIEW_USERS",
+
+    // ---- Users ----
+    "USER_CREATE",
+    "USER_VIEW",
+    "USER_UPDATE",
+    "USER_DELETE",
+    "USER_MOVE_DEPARTMENT",
+    "USER_TOGGLE",
+
+    // ---- RBAC (limited) ----
+    "ROLE_CREATE",
+    "ROLE_UPDATE", // tenant roles only (enforced in code)
+    "ROLE_PERMISSION_ASSIGN",
+
+    // ---- Shifts ----
+    "SHIFT_CREATE",
+    "SHIFT_VIEW",
+    "SHIFT_UPDATE",
+    "SHIFT_DELETE",
+
+    // ---- Shift Requirement ----
+    "SHIFT_REQ_CREATE",
+    "SHIFT_REQ_VIEW",
+    "SHIFT_REQ_UPDATE",
+    "SHIFT_REQ_DELETE",
+    "SHIFT_REQ_BULK",
+
+    // ---- Allocation ----
+    "ALLOC_VIEW",
+    "ALLOC_CREATE",
+    "ALLOC_UPDATE",
+    "ALLOC_DELETE",
+    "ALLOC_BULK",
+    "ALLOC_SWAP",
+
+    // extra endpoints
+    "ALLOC_BOARD",
+    "ALLOC_CALENDAR",
+    "ALLOC_COVERAGE",
+
+    // ---- Scheduler ----
+    "SCHEDULER_GENERATE",
+    "SCHEDULER_PREVIEW",
+    "SCHEDULER_SAVE",
+  ];
+
+  for (const p of tenantPerms) {
+    await Permission.findOneAndUpdate(
+      { code: p, organizationId: null },
+      {
+        name: p,
+        module: "CORE",
+        scope: "SYSTEM",
+        isSystem: true,
+      },
+      { upsert: true, new: true },
+    );
+  }
+
+  /* =====================================================
+     4️⃣ PLATFORM ADMIN USER (org = null allowed)
+  ===================================================== */
+  let adminUser = await User.findOne({ email: process.env.ADMIN_EMAIL });
 
   if (!adminUser) {
     adminUser = await User.create({
@@ -68,9 +145,6 @@ const seed = async () => {
     });
   }
 
-  /* =====================================================
-     4️⃣ PLATFORM ADMIN CREDENTIAL
-  ===================================================== */
   let acc = await AuthAccount.findOne({
     identifier: process.env.ADMIN_EMAIL,
   });
@@ -120,83 +194,13 @@ const seed = async () => {
   }
 
   /* =====================================================
-     6️⃣ SYSTEM PERMISSIONS (CORE PLATFORM OWNED)
+     6️⃣ MAP TENANT PERMISSIONS TO TENANT ADMIN
   ===================================================== */
-
-  const systemPerms = [
-    // ----- Departments -----
-    "DEPARTMENT_CREATE",
-    "DEPARTMENT_VIEW",
-    "DEPARTMENT_UPDATE",
-    "DEPARTMENT_DELETE",
-    "DEPARTMENT_VIEW_USERS",
-
-    // ----- Users -----
-    "USER_CREATE",
-    "USER_VIEW",
-    "USER_UPDATE",
-    "USER_DELETE",
-    "USER_MOVE_DEPARTMENT",
-    "USER_TOGGLE",
-
-    // ----- RBAC -----
-    "ROLE_CREATE",
-    "ROLE_UPDATE",
-    "ROLE_DELETE",
-    "PERMISSION_CREATE",
-    "PERMISSION_UPDATE",
-    "ROLE_PERMISSION_ASSIGN",
-
-    // ----- Shifts -----
-    "SHIFT_CREATE",
-    "SHIFT_VIEW",
-    "SHIFT_UPDATE",
-    "SHIFT_DELETE",
-
-    // 🔥 ----- Shift Requirement -----
-    "SHIFT_REQ_CREATE",
-    "SHIFT_REQ_VIEW",
-    "SHIFT_REQ_UPDATE",
-    "SHIFT_REQ_DELETE",
-    "SHIFT_REQ_BULK",
-
-    // ----- Allocation -----
-    "ALLOC_VIEW",
-    "ALLOC_CREATE",
-    "ALLOC_UPDATE",
-    "ALLOC_DELETE",
-    "ALLOC_BULK",
-    "ALLOC_SWAP",
-
-    // ----- Scheduler -----
-    "SCHEDULER_GENERATE",
-    "SCHEDULER_PREVIEW",
-    "SCHEDULER_SAVE",
-  ];
-
-  // Create SYSTEM permissions owned by platform (organizationId = null)
-  for (const p of systemPerms) {
-    await Permission.findOneAndUpdate(
-      { code: p, organizationId: null },
-      {
-        name: p,
-        module: "CORE",
-        scope: "SYSTEM",
-        isSystem: true,
-      },
-      { upsert: true, new: true },
-    );
-  }
-
-  // Load all system permissions
-  const allSystem = await Permission.find({
-    scope: "SYSTEM",
+  const tenantSystem = await Permission.find({
+    code: { $in: tenantPerms },
   });
 
-  /* =====================================================
-     7️⃣ MAP SYSTEM PERMISSIONS TO TENANT ADMIN
-  ===================================================== */
-  for (const perm of allSystem) {
+  for (const perm of tenantSystem) {
     await RolePermission.findOneAndUpdate(
       {
         roleId: tenantRole._id,
@@ -208,8 +212,10 @@ const seed = async () => {
   }
 
   /* =====================================================
-     8️⃣ HYBRID: PLATFORM ADMIN GETS ALL SYSTEM PERMS
+     7️⃣ PLATFORM GETS ABSOLUTE GOD MODE
   ===================================================== */
+  const allSystem = await Permission.find({ scope: "SYSTEM" });
+
   for (const perm of allSystem) {
     await RolePermission.findOneAndUpdate(
       {
@@ -221,7 +227,7 @@ const seed = async () => {
     );
   }
 
-  console.log("Seed done ✅");
+  console.log("Seed done ✅ SAFE GOD MODE ACTIVE");
   process.exit();
 };
 

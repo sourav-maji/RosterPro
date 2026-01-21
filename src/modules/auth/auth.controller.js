@@ -35,7 +35,7 @@ export const login = async (req, res, next) => {
       throw new ApiError("Invalid credentials", 401);
     }
 
-    const user = await User.findById(account.userId);
+    const user = await User.findById(account.userId).populate("roleId");
 
     if (!user) {
       throw new ApiError("User not found", 401);
@@ -43,6 +43,10 @@ export const login = async (req, res, next) => {
 
     account.lastLogin = new Date();
     await account.save();
+
+    // normalize
+    user.role = user.roleId;
+    user.roleCode = user.roleId?.code;
 
     const accessToken = signAccessToken(user);
     const refreshToken = signRefreshToken(user);

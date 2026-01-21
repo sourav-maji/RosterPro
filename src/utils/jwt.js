@@ -6,6 +6,7 @@ export const signAccessToken = (user) =>
       id: user._id,
       organizationId: user.organizationId,
       roleId: user.roleId,
+      roleCode: user.role?.code || user.roleCode || null,
     },
     process.env.JWT_SECRET,
     { expiresIn: "1h" },
