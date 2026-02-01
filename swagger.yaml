@@ -1,12 +1,14 @@
 openapi: 3.0.4
+
 info:
   title: SmartShift / RosterPro API
   version: "1.0.0"
   description: >
-    Backend APIs for multi-tenant rostering system with ML scheduling
+    Multi-tenant workforce scheduling platform with RBAC and ML-based rostering.
 
 servers:
   - url: http://localhost:3000/api/v1
+  - url: http://localhost:PORT/api/v1
 
 security:
   - bearerAuth: []
@@ -28,7 +30,7 @@ components:
         message: { type: string }
         data: { type: object }
 
-    # ---------- AUTH ----------
+    # ================= AUTH =================
     LoginRequest:
       type: object
       required: [email, password]
@@ -36,7 +38,21 @@ components:
         email: { type: string }
         password: { type: string }
 
-    # ---------- MASTERS ----------
+    PasswordChange:
+      type: object
+      required: [oldPassword, newPassword]
+      properties:
+        oldPassword: { type: string }
+        newPassword: { type: string }
+
+    PasswordReset:
+      type: object
+      required: [userId, newPassword]
+      properties:
+        userId: { type: string }
+        newPassword: { type: string }
+
+    # ================= ORG =================
     Organization:
       type: object
       properties:
@@ -46,6 +62,7 @@ components:
           type: string
           enum: [HOSPITAL, FACTORY, GENERIC]
 
+    # ================= USERS =================
     User:
       type: object
       properties:
@@ -54,12 +71,14 @@ components:
         roleId: { type: string }
         departmentId: { type: string }
 
+    # ================= DEPARTMENT =================
     Department:
       type: object
       properties:
         name: { type: string }
         description: { type: string }
 
+    # ================= SHIFTS =================
     Shift:
       type: object
       properties:
@@ -68,6 +87,7 @@ components:
         endTime: { type: string }
         durationHours: { type: number }
 
+    # ================= SHIFT REQUIREMENT =================
     ShiftRequirement:
       type: object
       properties:
@@ -78,39 +98,21 @@ components:
         effectiveFrom: { type: string, format: date }
         effectiveTo: { type: string, format: date }
 
-    SchedulerRequest:
-      type: object
-      properties:
-        departmentId: { type: string }
-        date: { type: string, format: date }
-
-    # ---------- RBAC ----------
+    # ================= RBAC =================
     PermissionCreate:
       type: object
       required: [code, name]
       properties:
-        code:
-          type: string
-          example: USER_VIEW
-        name:
-          type: string
-          example: View Users
-        module:
-          type: string
-          example: CORE
+        code: { type: string }
+        name: { type: string }
+        module: { type: string }
 
     RoleCreate:
       type: object
       required: [code, name]
       properties:
-        code:
-          type: string
-          example: MANAGER
-        name:
-          type: string
-          example: Department Manager
-        organizationId:
-          type: string
+        code: { type: string }
+        name: { type: string }
 
     RolePermissionAssign:
       type: object
@@ -128,11 +130,21 @@ components:
           type: array
           items: { type: string }
 
-    Error403:
+    # ================= SCHEDULER =================
+    SchedulerPreviewRequest:
       type: object
+      required: [departmentId, date]
       properties:
-        success: { type: boolean, example: false }
-        message: { type: string, example: Permission denied }
+        departmentId: { type: string }
+        date: { type: string, format: date }
+
+    SchedulerSaveRequest:
+      type: object
+      required: [result, departmentId, meta]
+      properties:
+        result: { type: object }
+        departmentId: { type: string }
+        meta: { type: object }
 
 paths:
 
@@ -144,254 +156,237 @@ paths:
       requestBody:
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/LoginRequest"
-      responses:
-        "200": { description: success }
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses: { "200": { description: OK } }
 
-  /auth/refresh:
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user
+      responses: { "200": { description: OK } }
+
+  /auth/change-password:
     post:
       tags: [Auth]
-      summary: Refresh token
-      responses: { "200": { description: success } }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordChange" }
+      responses: { "200": { description: OK } }
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordReset" }
+      responses: { "200": { description: OK } }
 
   /auth/logout:
     post:
       tags: [Auth]
-      summary: Logout
-      responses: { "200": { description: success } }
+      responses: { "200": { description: OK } }
 
-  # ================= ORGANIZATION =================
-  /org:
+  /auth/logout-all:
+    post:
+      tags: [Auth]
+      responses: { "200": { description: OK } }
+
+  /auth/permissions:
     get:
-      tags: [Organization]
-      summary: List organizations
-      responses: { "200": { description: ok } }
+      tags: [Auth]
+      summary: My permissions
+      responses: { "200": { description: OK } }
 
+  # ================= ORG =================
+  /org:
     post:
       tags: [Organization]
-      summary: Create organization
+      summary: Create org
       requestBody:
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/Organization"
-      responses: { "200": { description: ok } }
+            schema: { $ref: "#/components/schemas/Organization" }
+      responses: { "200": { description: OK } }
+
+    get:
+      tags: [Organization]
+      summary: List orgs
+      responses: { "200": { description: OK } }
+
+  /org/count:
+    get:
+      tags: [Organization]
+      responses: { "200": { description: OK } }
+
+  /org/me:
+    get:
+      tags: [Organization]
+      responses: { "200": { description: OK } }
 
   /org/{id}:
+    get:
+      tags: [Organization]
+      responses: { "200": { description: OK } }
+
     put:
       tags: [Organization]
-      summary: Update organization
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
+
+    delete:
+      tags: [Organization]
+      responses: { "200": { description: OK } }
+
+  /org/{id}/toggle:
+    patch:
+      tags: [Organization]
+      responses: { "200": { description: OK } }
 
   # ================= USERS =================
   /users:
     get:
       tags: [Users]
-      summary: List users
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
     post:
       tags: [Users]
-      summary: Create user
       requestBody:
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/User"
-      responses: { "200": { description: ok } }
+            schema: { $ref: "#/components/schemas/User" }
+      responses: { "200": { description: OK } }
 
   /users/count:
     get:
       tags: [Users]
-      summary: Count users
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /users/{id}:
     get:
       tags: [Users]
-      summary: Get user
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
     put:
       tags: [Users]
-      summary: Update user
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
     delete:
       tags: [Users]
-      summary: Delete user
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /users/toggle/{id}:
     post:
       tags: [Users]
-      summary: Toggle active
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   # ================= DEPARTMENTS =================
   /departments:
     get:
       tags: [Departments]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
     post:
       tags: [Departments]
       requestBody:
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/Department"
-      responses: { "200": { description: ok } }
+            schema: { $ref: "#/components/schemas/Department" }
+      responses: { "200": { description: OK } }
 
   /departments/{id}:
     put:
       tags: [Departments]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
     delete:
       tags: [Departments]
-      parameters:
-        - name: id
-          in: path
-          required: true
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /departments/{id}/users:
     get:
       tags: [Departments]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   # ================= SHIFTS =================
   /shifts:
     get:
       tags: [Shifts]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
     post:
       tags: [Shifts]
       requestBody:
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/Shift"
-      responses: { "200": { description: ok } }
+            schema: { $ref: "#/components/schemas/Shift" }
+      responses: { "200": { description: OK } }
 
   /shifts/{id}:
     put:
       tags: [Shifts]
-      parameters:
-        - name: id
-          in: path
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
     delete:
       tags: [Shifts]
-      parameters:
-        - name: id
-          in: path
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   # ================= SHIFT REQUIREMENT =================
   /shift-req:
     get:
       tags: [Shift Requirement]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
     post:
       tags: [Shift Requirement]
       requestBody:
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/ShiftRequirement"
-      responses: { "200": { description: ok } }
+            schema: { $ref: "#/components/schemas/ShiftRequirement" }
+      responses: { "200": { description: OK } }
 
   /shift-req/bulk:
     post:
       tags: [Shift Requirement]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /shift-req/{id}:
     put:
       tags: [Shift Requirement]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
     delete:
       tags: [Shift Requirement]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /shift-req/department/{deptId}:
     get:
       tags: [Shift Requirement]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /shift-req/department/{deptId}/shift/{shiftId}:
     get:
       tags: [Shift Requirement]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
-  # ================= RBAC MODULES =================
-
+  # ================= RBAC =================
   /permissions:
     post:
       tags: [Permissions]
       requestBody:
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/PermissionCreate"
-      responses:
-        "200": { description: ok }
-        "403":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error403"
+            schema: { $ref: "#/components/schemas/PermissionCreate" }
+      responses: { "200": { description: OK } }
 
     get:
       tags: [Permissions]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /permissions/{id}:
     put:
       tags: [Permissions]
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PermissionCreate"
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /roles:
     post:
@@ -399,22 +394,21 @@ paths:
       requestBody:
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/RoleCreate"
-      responses: { "200": { description: ok } }
+            schema: { $ref: "#/components/schemas/RoleCreate" }
+      responses: { "200": { description: OK } }
 
     get:
       tags: [Roles]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /roles/{id}:
     put:
       tags: [Roles]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
     delete:
       tags: [Roles]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /role-permission:
     post:
@@ -422,9 +416,8 @@ paths:
       requestBody:
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/RolePermissionAssign"
-      responses: { "200": { description: ok } }
+            schema: { $ref: "#/components/schemas/RolePermissionAssign" }
+      responses: { "200": { description: OK } }
 
   /role-permission/bulk:
     post:
@@ -432,19 +425,18 @@ paths:
       requestBody:
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/RolePermissionBulk"
-      responses: { "200": { description: ok } }
+            schema: { $ref: "#/components/schemas/RolePermissionBulk" }
+      responses: { "200": { description: OK } }
 
   /role-permission/{id}:
     delete:
       tags: [RolePermission]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /role-permission/role/{roleId}:
     get:
       tags: [RolePermission]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   # ================= SCHEDULER =================
   /scheduler/preview:
@@ -453,57 +445,55 @@ paths:
       requestBody:
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/SchedulerRequest"
-      responses: { "200": { description: ok } }
+            schema: { $ref: "#/components/schemas/SchedulerPreviewRequest" }
+      responses: { "200": { description: OK } }
 
   /scheduler/save:
     post:
       tags: [Scheduler]
-      responses: { "200": { description: ok } }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SchedulerSaveRequest" }
+      responses: { "200": { description: OK } }
 
   # ================= ALLOCATION =================
   /alloc:
     get:
       tags: [Allocation]
-      parameters:
-        - name: departmentId
-          in: query
-        - name: date
-          in: query
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /alloc/manual:
     post:
       tags: [Allocation]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /alloc/ml:
     post:
       tags: [Allocation]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /alloc/swap:
     post:
       tags: [Allocation]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /alloc/{id}:
     delete:
       tags: [Allocation]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /alloc/board:
     get:
       tags: [Allocation]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /alloc/calendar:
     get:
       tags: [Allocation]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }
 
   /alloc/coverage:
     get:
       tags: [Allocation]
-      responses: { "200": { description: ok } }
+      responses: { "200": { description: OK } }

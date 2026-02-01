@@ -1,260 +1,298 @@
-# RosterPro Backend
+# 🧠 SmartShift – Intelligent Workforce Scheduling Platform (V1)
 
-A multi-tenant shift scheduling backend designed for hospitals, factories, and generic organizations with strong RBAC, date-wise shift requirements, and foundation for ML-based allocation.
+SmartShift is a **multi-tenant, role-based workforce scheduling platform** designed for hospitals, factories, and shift-driven organizations.  
+It combines **rule-based configuration** with a **constraint-optimization (ML) scheduler** to generate realistic weekly rosters.
 
 ---
 
-## 🚀 Tech Stack
+## 🚀 Key Features (V1)
 
-- Node.js (ES6) + Express  
-- MongoDB + Mongoose  
-- JWT Authentication (Access + Refresh)  
-- Role Based Access Control  
-- Modular architecture
+### 🏢 Multi-Tenant Architecture
+- Platform Admin & Tenant isolation
+- Each organization has its own data, users, roles, and schedules
+
+### 🔐 Enterprise-Grade RBAC
+- Role-based access control (RBAC)
+- System permissions + tenant-level permissions
+- Platform Admin has safe **god-mode**
+- Permissions enforced at **every API**
+
+### 🧩 Core Modules
+- Organization management
+- Departments
+- Users & Roles
+- Shifts
+- Shift Requirements (date-effective)
+- Allocations (manual + ML)
+- Scheduler (preview + save)
+
+### 🤖 ML-Powered Scheduling (Python Service)
+- Weekly schedule generation
+- Partial solutions allowed
+- Hard constraints enforced
+- Soft constraints minimized
+- Designed for real-world feasibility
 
 ---
 
 ## 🧱 Architecture Overview
 
-### Folder Structure
+┌──────────────┐ HTTP ┌────────────────────────┐
+│ Node.js API │ ───────────────▶ │ Python Scheduler (OR-Tools) │
+│ (Express) │ │ FastAPI + CP-SAT Solver │
+└──────────────┘ └────────────────────────┘
+│
+▼
+MongoDB
 
-src/
- ├── config/
- │   └── db.js
- ├── middleware/
- │   ├── auth.js
- │   ├── rbac.js
- │   └── error.js
- ├── modules/
- │   ├── org/
- │   ├── users/
- │   ├── departments/
- │   ├── roles/
- │   ├── permissions/
- │   ├── shifts/
- │   └── shiftReq/
- ├── utils/
- │   ├── ApiError.js
- │   ├── async.js
- │   ├── jwt.js
- │   └── response.js
- └── seed.js
+
+- **Node.js** → Business logic, RBAC, persistence
+- **Python** → Scheduling optimization (OR-Tools)
+- **MongoDB** → Multi-tenant data store
+
+---
+
+## 🛠 Tech Stack
+
+### Backend (Core API)
+- Node.js (ESM)
+- Express.js
+- MongoDB + Mongoose
+- JWT Authentication
+- RBAC Middleware
+- Swagger (OpenAPI)
+
+### Scheduler Service
+- Python 3
+- FastAPI
+- Google OR-Tools (CP-SAT)
+- Constraint optimization (no GenAI dependency)
+
+---
+
+## 🔐 Authentication Flow
+
+- JWT access + refresh tokens
+- Secure token rotation
+- Service-to-service auth via API key
+- Platform Admin ≠ Tenant Admin (strict separation)
+
+---
+
+## 🧠 Scheduling Logic (V1)
+
+### Hard Constraints
+- One shift per user per day
+- Role-based coverage
+- Max shifts per week
+- Max weekly hours
+
+### Soft Constraints
+- Minimize unmet coverage
+- Balance assignments where possible
+
+### Supported
+- Weekly generation
+- Partial schedules allowed
+- Manual override supported
+
+### Not in V1 (by design)
+- Leave / unavailability module
+- Consecutive night rules
+- Staff self-service
+- Swap approval workflow
+
+---
+
+## 📦 API Modules
+
+| Module | Description |
+|------|------------|
+| Auth | Login, refresh, permissions |
+| Org | Organization onboarding |
+| Users | Staff management |
+| Roles & Permissions | RBAC |
+| Departments | Logical grouping |
+| Shifts | Shift definitions |
+| Shift Requirements | Coverage rules |
+| Scheduler | ML preview & save |
+| Allocation | Final schedules |
+
+---
+
+## 🔄 Core User Flow (V1)
+
+1. Platform Admin creates organization
+2. Tenant Admin configures:
+   - Departments
+   - Users
+   - Roles
+   - Shifts
+   - Shift requirements
+3. Scheduler preview generated (ML)
+4. Optional manual adjustments
+5. Schedule committed to allocation
+6. Users view board / calendar
+
+---
+
+## 📂 Repository Structure
+
+
+
+- **Node.js** → Business logic, RBAC, persistence
+- **Python** → Scheduling optimization (OR-Tools)
+- **MongoDB** → Multi-tenant data store
+
+---
+
+## 🛠 Tech Stack
+
+### Backend (Core API)
+- Node.js (ESM)
+- Express.js
+- MongoDB + Mongoose
+- JWT Authentication
+- RBAC Middleware
+- Swagger (OpenAPI)
+
+### Scheduler Service
+- Python 3
+- FastAPI
+- Google OR-Tools (CP-SAT)
+- Constraint optimization (no GenAI dependency)
+
+---
+
+## 🔐 Authentication Flow
+
+- JWT access + refresh tokens
+- Secure token rotation
+- Service-to-service auth via API key
+- Platform Admin ≠ Tenant Admin (strict separation)
+
+---
+
+## 🧠 Scheduling Logic (V1)
+
+### Hard Constraints
+- One shift per user per day
+- Role-based coverage
+- Max shifts per week
+- Max weekly hours
+
+### Soft Constraints
+- Minimize unmet coverage
+- Balance assignments where possible
+
+### Supported
+- Weekly generation
+- Partial schedules allowed
+- Manual override supported
+
+### Not in V1 (by design)
+- Leave / unavailability module
+- Consecutive night rules
+- Staff self-service
+- Swap approval workflow
+
+---
+
+## 📦 API Modules
+
+| Module | Description |
+|------|------------|
+| Auth | Login, refresh, permissions |
+| Org | Organization onboarding |
+| Users | Staff management |
+| Roles & Permissions | RBAC |
+| Departments | Logical grouping |
+| Shifts | Shift definitions |
+| Shift Requirements | Coverage rules |
+| Scheduler | ML preview & save |
+| Allocation | Final schedules |
+
+---
+
+## 🔄 Core User Flow (V1)
+
+1. Platform Admin creates organization
+2. Tenant Admin configures:
+   - Departments
+   - Users
+   - Roles
+   - Shifts
+   - Shift requirements
+3. Scheduler preview generated (ML)
+4. Optional manual adjustments
+5. Schedule committed to allocation
+6. Users view board / calendar
+
+---
+
+## 📂 Repository Structure
+
+/src
+├── config
+├── middleware
+├── modules
+│ ├── auth
+│ ├── org
+│ ├── users
+│ ├── roles
+│ ├── permissions
+│ ├── departments
+│ ├── shifts
+│ ├── shiftReq
+│ ├── alloc
+│ └── scheduler
+└── utils
+
+
 
 
 ---
 
-## 🔐 Security Model
+## ▶️ Running Locally
 
-### Authentication
-- JWT access token + refresh token  
-- Credentials stored separately (`AuthAccount`)  
-- OAuth-ready design
-
-### RBAC – Two Level Permission System
-
-#### 1. System Permissions (Platform Owned)
-Used to secure core APIs. Read-only for tenants.
-
-Examples:
-- DEPARTMENT_CREATE  
-- USER_UPDATE  
-- SHIFT_VIEW  
-- SHIFT_REQ_BULK  
-
-#### 2. Business Permissions (Tenant Defined)
-Used for UI/workflow logic, not for API guards.
-
-### Hybrid Access
-
-| Role | Scope |
-|-----|------|
-| Platform Admin | Can manage all tenants |
-| Tenant Admin | Can manage only own tenant |
-
----
-
-## 🧩 Modules
-
-### 1. Organization (Tenant Root)
-
-Fields:
-- name  
-- contactEmail  
-- type (HOSPITAL | FACTORY | GENERIC)  
-- status / timestamps  
-
-Managed only by Platform Admin.
-
----
-
-### 2. Users
-
-Design Principles:
-- Profile separate from credentials  
-- Single source of truth for department  
-- Tenant isolation
-
-Key APIs:
-- CRUD  
-- Toggle active  
-- Change department
-
----
-
-### 3. Departments
-
-- Pure master entity  
-- No user array stored  
-- Users reference department
-
-APIs:
-- CRUD  
-- Get users of department
-
----
-
-### 4. Shifts
-
-Defines working slots per department.
-
-Fields:
-- startTime / endTime  
-- duration  
-- type (NORMAL | NIGHT | OVERTIME)
-
-APIs:
-- CRUD  
-- Filter by department  
-- Toggle active
-
----
-
-### 5. Shift Requirement 🔥
-
-Core concept:
-
-> Department + Shift + Role + Date Range → Required Count
-
-#### Business Rules
-- ❌ No overlapping date ranges  
-- ✔ Role based only  
-- ✔ Tenant isolated
-
-#### Main Endpoints
-
-- POST /shift-req  
-- POST /shift-req/bulk  
-- GET /shift-req/department/:id  
-- GET /shift-req/department/:id/shift/:shiftId  
-- PUT /shift-req/:id  
-- DELETE /shift-req/:id  
-
-Example Payload:
-
-{
-  "departmentId": "ICU",
-  "shiftId": "MORNING",
-  "roleId": "NURSE",
-  "requiredCount": 3,
-  "effectiveFrom": "2026-01-01",
-  "effectiveTo": "2026-03-31"
-}
-
-
----
-
-## 🛡 Permissions Enforced
-
-### Departments
-- DEPARTMENT_CREATE  
-- DEPARTMENT_VIEW  
-- DEPARTMENT_UPDATE  
-- DEPARTMENT_DELETE  
-
-### Users
-- USER_CREATE  
-- USER_UPDATE  
-- USER_DELETE  
-- USER_MOVE_DEPARTMENT  
-
-### Shifts
-- SHIFT_CREATE  
-- SHIFT_VIEW  
-- SHIFT_UPDATE  
-- SHIFT_DELETE  
-
-### Shift Requirement
-- SHIFT_REQ_CREATE  
-- SHIFT_REQ_VIEW  
-- SHIFT_REQ_UPDATE  
-- SHIFT_REQ_DELETE  
-- SHIFT_REQ_BULK  
-
----
-
-## 🧪 Setup
-
-### Environment
-
-.env
-ADMIN_EMAIL=admin@demo.com
-ADMIN_PASSWORD=123456
-JWT_SECRET=supersecret
-MONGO_URL=mongodb://localhost/rosterpro
-
-
-### Run
-
+### Backend API
+```
 npm install
-node src/seed.js
 npm run dev
+```
+
+📄 API Documentation
+Swagger UI available at:
+
+```bash
+http://localhost:3000/docs
+```
+## 🧪 Current Status
+
+- ✅ Production-ready V1
+- ✅ Real scheduling engine
+- ✅ Clean upgrade path to V2
 
 
----
+## 🛣 Roadmap (V2 Ideas)
 
-## 📌 Data Flow
+- Leave / unavailability module
 
-1. Platform Admin  
-   → onboard tenant  
-   → create tenant admin  
+- Consecutive night rules
 
-2. Tenant Admin  
-   → create departments  
-   → create shifts  
-   → define shift requirements  
+- Fairness & rotation
 
-3. Next Phase  
-   → ML service will generate allocations  
+- Swap approval workflow
 
----
+- Staff self-service portal
 
-## ✅ Current Status
+- Historical analytics
 
-- Multi-tenant foundation  
-- Auth & RBAC  
-- Masters (Org/Users/Departments/Shifts)  
-- Date-wise Shift Requirement  
-- Hybrid platform access  
 
-**Completion: ~88% of V1 Backend**
+## 🧑‍💻 Author
 
----
+Sourav Maji
 
-## 🚧 Next Phase
+Senior Software Engineer
 
-- Shift Allocation module  
-- Rules engine  
-- Summary analytics  
-- ML scheduler integration
-
----
-
-## 🤝 Contribution
-
-Follow ES6 standards, modular structure, and always protect APIs with RBAC permissions.
-
----
-
-## License
-
-Private – RosterPro
+Automation | Backend | System Design
