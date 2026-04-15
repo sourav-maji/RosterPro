@@ -59,7 +59,10 @@ export const login = async (req, res, next) => {
       userAgent: req.headers["user-agent"],
     });
 
-    return ok(res, { accessToken, refreshToken, user });
+    // Include mustChangePassword so the frontend can force a password reset screen
+    const mustChangePassword = account.mustChangePassword ?? false;
+
+    return ok(res, { accessToken, refreshToken, user, mustChangePassword });
   } catch (err) {
     next(err);
   }
@@ -100,6 +103,7 @@ export const registerLocal = async (req, res, next) => {
       identifier: email.toLowerCase(),
       passwordHash: hash,
       provider: "LOCAL",
+      mustChangePassword: true,   // admin-set password — user must reset on first login
     });
 
     return ok(res, account, "Credential created");
@@ -127,6 +131,7 @@ export const changePassword = async (req, res, next) => {
     if (!match) throw new ApiError("Old password incorrect", 400);
 
     account.passwordHash = await bcrypt.hash(newPassword, 10);
+    account.mustChangePassword = false;   // cleared once user sets their own password
     await account.save();
 
     return ok(res, null, "Password changed");

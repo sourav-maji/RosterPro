@@ -25,12 +25,20 @@ export const createRole = async (req, res, next) => {
 
 /**
  * LIST ROLES (tenant + platform)
+ * Platform admin may pass ?orgId=xxx to see roles of any org
  */
 export const listRole = async (req, res, next) => {
   try {
+    const isPlatform = !req.user.organizationId;
+    const { orgId } = req.query;
+
+    const targetOrgId = isPlatform
+      ? (orgId ?? null)          // platform: scope to requested org (or system roles only)
+      : req.user.organizationId; // tenant: always own org
+
     const roles = await Role.find({
       $or: [
-        { organizationId: req.user.organizationId },
+        { organizationId: targetOrgId },
         { organizationId: null },
       ],
     });

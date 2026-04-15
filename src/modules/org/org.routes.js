@@ -15,22 +15,16 @@ import {
 
 const router = Router();
 
-// Platform level (no auth for initial onboarding)
-
+// Public – initial onboarding (no token required)
 router.post("/", asyncHandler(createOrg));
-router.get("/", asyncHandler(listOrg));
-router.get("/count", asyncHandler(countOrg));
 
-router.get("/:id", asyncHandler(getOrg));
-router.put("/:id", asyncHandler(updateOrg));
-router.delete("/:id", asyncHandler(deleteOrg));
-
-// User Context
-
+// Authenticated routes
+router.get("/", protect, asyncHandler(listOrg));
+router.get("/count", protect, asyncHandler(countOrg));
 router.get("/me", protect, asyncHandler(myOrg));
-
-// Utility
-
-router.patch("/:id/toggle", asyncHandler(toggleActive));
+router.get("/:id", protect, asyncHandler(getOrg));
+router.put("/:id", protect, asyncHandler(updateOrg));
+router.delete("/:id", protect, asyncHandler(deleteOrg));
+router.patch("/:id/toggle", protect, asyncHandler(toggleActive));
 
 export default router;

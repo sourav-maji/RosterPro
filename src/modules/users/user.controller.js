@@ -78,21 +78,25 @@ export const createUser = async (req, res, next) => {
 };
 
 /* =======================================================
-   LIST USERS – Tenant Scoped
+   LIST USERS – Tenant Scoped / Platform can filter by orgId
 ======================================================= */
 export const listUsers = async (req, res, next) => {
   try {
-    const { search } = req.query;
+    const { search, orgId } = req.query;
 
-    const filter = {
-      organizationId: req.user?.organizationId || null,
-    };
+    // Platform admin may pass ?orgId=xxx to list users of any org
+    const isPlatform = !req.user.organizationId;
+    const scopedOrgId = isPlatform
+      ? (orgId ?? null)
+      : req.user.organizationId;
+
+    const filter = { organizationId: scopedOrgId };
 
     if (search) {
       filter.name = { $regex: search, $options: "i" };
     }
 
-    const users = await User.find(filter).sort({ createdAt: -1 });
+    const users = await User.find(filter).populate("roleId").sort({ createdAt: -1 });
 
     return ok(res, users);
   } catch (err) {

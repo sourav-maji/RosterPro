@@ -18,6 +18,11 @@ export const protect = async (req, res, next) => {
       throw new ApiError("User not found", 401);
     }
 
+    // Attach roleCode from JWT payload so controllers and RBAC middleware
+    // can check it without an extra populate query.
+    // (User model has no roleCode field; it is only in the token.)
+    user.roleCode = decoded.roleCode ?? null;
+
     req.user = user;
     next();
   } catch (err) {
