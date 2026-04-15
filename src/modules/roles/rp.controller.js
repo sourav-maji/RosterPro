@@ -22,19 +22,23 @@ export const assign = async (req, res, next) => {
       throw new ApiError("Cannot modify platform role", 403);
     }
 
-    // Role must belong to the caller's org; permission may be system-wide (null) or org-scoped
-    if (String(role.organizationId) !== String(req.user.organizationId)) {
+    const isPlatform = !req.user.organizationId;
+
+    // Tenant admin: role must belong to their org
+    if (!isPlatform && String(role.organizationId) !== String(req.user.organizationId)) {
       throw new ApiError("Role does not belong to your organization", 403);
     }
 
-    if (perm.organizationId && String(perm.organizationId) !== String(req.user.organizationId)) {
+    if (perm.organizationId && !isPlatform && String(perm.organizationId) !== String(req.user.organizationId)) {
       throw new ApiError("Cross tenant mapping not allowed", 403);
     }
+
+    const targetOrgId = role.organizationId;
 
     const map = await RolePermission.create({
       roleId,
       permissionId,
-      organizationId: req.user.organizationId,
+      organizationId: targetOrgId,
     });
 
     return ok(res, map, "Assigned");
@@ -54,19 +58,29 @@ export const bulkAssign = async (req, res, next) => {
 
     if (!role) throw new ApiError("Role not found", 404);
 
-    if (String(role.organizationId) !== String(req.user.organizationId)) {
+    if (!role.organizationId) {
+      throw new ApiError("Cannot modify platform role", 403);
+    }
+
+    const isPlatform = !req.user.organizationId;
+
+    // Tenant admin: role must belong to their org
+    if (!isPlatform && String(role.organizationId) !== String(req.user.organizationId)) {
       throw new ApiError("Not allowed", 403);
     }
 
+    // Use the role's own org as the scope for the mapping
+    const targetOrgId = role.organizationId;
+
     await RolePermission.deleteMany({
       roleId,
-      organizationId: req.user.organizationId,
+      organizationId: targetOrgId,
     });
 
     const docs = permissionIds.map((pid) => ({
       roleId,
       permissionId: pid,
-      organizationId: req.user.organizationId,
+      organizationId: targetOrgId,
     }));
 
     await RolePermission.insertMany(docs);
@@ -86,7 +100,9 @@ export const remove = async (req, res, next) => {
 
     if (!map) throw new ApiError("Mapping not found", 404);
 
-    if (String(map.organizationId) !== String(req.user.organizationId)) {
+    const isPlatform = !req.user.organizationId;
+
+    if (!isPlatform && String(map.organizationId) !== String(req.user.organizationId)) {
       throw new ApiError("Not allowed", 403);
     }
 
