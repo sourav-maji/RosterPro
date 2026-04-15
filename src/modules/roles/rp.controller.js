@@ -22,10 +22,12 @@ export const assign = async (req, res, next) => {
       throw new ApiError("Cannot modify platform role", 403);
     }
 
-    if (
-      String(role.organizationId) !== String(req.user.organizationId) ||
-      String(perm.organizationId) !== String(req.user.organizationId)
-    ) {
+    // Role must belong to the caller's org; permission may be system-wide (null) or org-scoped
+    if (String(role.organizationId) !== String(req.user.organizationId)) {
+      throw new ApiError("Role does not belong to your organization", 403);
+    }
+
+    if (perm.organizationId && String(perm.organizationId) !== String(req.user.organizationId)) {
       throw new ApiError("Cross tenant mapping not allowed", 403);
     }
 

@@ -194,6 +194,23 @@ const seed = async () => {
     });
   }
 
+  // Create tenant admin credentials if not already set
+  const tenantAcc = await AuthAccount.findOne({
+    identifier: "tenant@demo.com",
+    provider: "LOCAL",
+  });
+
+  if (!tenantAcc) {
+    const hash = await bcrypt.hash("Tenant@123456", 10);
+    await AuthAccount.create({
+      userId: tenantUser._id,
+      identifier: "tenant@demo.com",
+      passwordHash: hash,
+      provider: "LOCAL",
+      mustChangePassword: true,
+    });
+  }
+
   /* =====================================================
      6️⃣ MAP TENANT PERMISSIONS TO TENANT ADMIN
   ===================================================== */

@@ -5,6 +5,10 @@ import ApiError from "../../utils/ApiError.js";
 import { ok } from "../../utils/response.js";
 import Department from "../departments/department.model.js";
 
+// Returns { organizationId } filter for tenant admins; {} (no filter) for platform admin
+const orgScopeFilter = (req) =>
+  req.user?.organizationId ? { organizationId: req.user.organizationId } : {};
+
 /* =======================================================
    CREATE USER
    - Platform admin can create tenant admin users
@@ -111,7 +115,7 @@ export const getUser = async (req, res, next) => {
   try {
     const user = await User.findOne({
       _id: req.params.id,
-      organizationId: req.user?.organizationId || null,
+      ...orgScopeFilter(req),
     });
 
     if (!user) {
@@ -156,7 +160,7 @@ export const updateUser = async (req, res, next) => {
     const user = await User.findOneAndUpdate(
       {
         _id: req.params.id,
-        organizationId: req.user?.organizationId || null,
+        ...orgScopeFilter(req),
       },
       req.body,
       { new: true, runValidators: true },
@@ -179,7 +183,7 @@ export const deleteUser = async (req, res, next) => {
   try {
     const user = await User.findOneAndDelete({
       _id: req.params.id,
-      organizationId: req.user?.organizationId || null,
+      ...orgScopeFilter(req),
     });
 
     if (!user) {
@@ -197,9 +201,7 @@ export const deleteUser = async (req, res, next) => {
 ======================================================= */
 export const countUsers = async (req, res, next) => {
   try {
-    const count = await User.countDocuments({
-      organizationId: req.user?.organizationId || null,
-    });
+    const count = await User.countDocuments(orgScopeFilter(req));
 
     return ok(res, { count });
   } catch (err) {
@@ -214,7 +216,7 @@ export const toggleUser = async (req, res, next) => {
   try {
     const user = await User.findOne({
       _id: req.params.id,
-      organizationId: req.user?.organizationId || null,
+      ...orgScopeFilter(req),
     });
 
     if (!user) {

@@ -29,8 +29,9 @@ export const generatePreview = async (req, res, next) => {
 
     const result = await callPythonScheduler(payload);
 
+    let unmetCount = 0;
     try {
-      const unmetCount = result?.violations
+      unmetCount = result?.violations
         ? Object.values(result.violations).reduce((a, b) => a + b, 0)
         : 0;
     } catch (error) {

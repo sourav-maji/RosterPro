@@ -26,6 +26,7 @@ export const boardByDay = async (req, res, next) => {
     const board = {};
 
     for (const a of data) {
+      if (!a.shiftId || !a.userId) continue; // skip dangling refs
       const s = a.shiftId.name;
       if (!board[s]) board[s] = [];
 
@@ -56,12 +57,14 @@ export const userCalendar = async (req, res, next) => {
       date: { $gte: from, $lte: to },
     }).populate("shiftId", "name");
 
-    const cal = data.map((a) => ({
-      date: a.date,
-      shift: a.shiftId.name,
-      status: a.status,
-      source: a.source,
-    }));
+    const cal = data
+      .filter((a) => a.shiftId)
+      .map((a) => ({
+        date: a.date,
+        shift: a.shiftId.name,
+        status: a.status,
+        source: a.source,
+      }));
 
     return ok(res, cal);
   } catch (err) {
@@ -107,7 +110,7 @@ export const coverage = async (req, res, next) => {
       if (!result[shift]) result[shift] = {};
 
       const actual = alloc.filter(
-        (a) => a.shiftId.name === shift && a.userId.roleId.code === role,
+        (a) => a.shiftId?.name === shift && a.userId?.roleId?.code === role,
       ).length;
 
       result[shift][role] = {

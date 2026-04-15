@@ -184,8 +184,11 @@ export const refresh = async (req, res, next) => {
 
     const decoded = verifyToken(refreshToken);
 
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).populate("roleId");
     if (!user) throw new ApiError("User not found", 401);
+
+    // normalize so signAccessToken gets role.code
+    user.role = user.roleId;
 
     // rotate
     stored.revoked = true;
@@ -244,6 +247,13 @@ export const listAccounts = async (req, res, next) => {
   try {
     const { userId } = req.params;
 
+    // Only the account owner or a platform admin may view auth accounts
+    const isSelf = String(req.user._id) === String(userId);
+    const isPlatformAdmin = req.user.roleCode === "PLATFORM_ADMIN";
+    if (!isSelf && !isPlatformAdmin) {
+      throw new ApiError("Access denied", 403);
+    }
+
     const accounts = await AuthAccount.find({ userId });
 
     return ok(res, accounts);
@@ -258,6 +268,11 @@ export const listAccounts = async (req, res, next) => {
 export const deleteAccount = async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    // Only platform admin may delete an auth account
+    if (req.user.roleCode !== "PLATFORM_ADMIN") {
+      throw new ApiError("Access denied", 403);
+    }
 
     const acc = await AuthAccount.findByIdAndDelete(id);
 
@@ -275,7 +290,9 @@ export const myPermissions = async (req, res, next) => {
       roleId: req.user.roleId,
     }).populate("permissionId");
 
-    const codes = maps.map((m) => m.permissionId.code);
+    const codes = maps
+      .filter((m) => m.permissionId)
+      .map((m) => m.permissionId.code);
 
     return ok(res, { permissions: codes });
   } catch (err) {
