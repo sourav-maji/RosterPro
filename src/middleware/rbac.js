@@ -18,7 +18,7 @@ export const check = (permissionCode) => {
       // Prevent tenant from touching system metadata
       if (
         user.roleCode !== "PLATFORM_ADMIN" &&
-        ["PERMISSION_CREATE", "PERMISSION_UPDATE", "ROLE_DELETE"].includes(
+        ["PERMISSION_CREATE", "PERMISSION_UPDATE"].includes(
           permissionCode,
         )
       ) {

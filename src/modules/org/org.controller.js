@@ -4,6 +4,8 @@ import { ok } from "../../utils/response.js";
 import Role from "../roles/role.model.js";
 import User from "../users/user.model.js";
 import AuthAccount from "../auth/authAccount.model.js";
+import Permission from "../permissions/permission.model.js";
+import RolePermission from "../roles/rolePermission.model.js";
 import bcrypt from "bcryptjs";
 
 /* ======================================================
@@ -68,6 +70,18 @@ export const createOrg = async (req, res, next) => {
         provider: "LOCAL",
         mustChangePassword: true,
       });
+
+      // 4. Assign all system tenant permissions to the new TENANT_ADMIN role
+      const tenantPermissions = await Permission.find({
+        scope: "SYSTEM",
+        module: "CORE",
+      });
+      const rpDocs = tenantPermissions.map((p) => ({
+        roleId: tenantAdminRole._id,
+        permissionId: p._id,
+        organizationId: org._id,
+      }));
+      await RolePermission.insertMany(rpDocs, { ordered: false }).catch(() => {});
     }
 
     return ok(res, { org, adminUser }, "Organization created");

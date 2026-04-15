@@ -83,7 +83,8 @@ const seed = async () => {
 
     // ---- RBAC (limited) ----
     "ROLE_CREATE",
-    "ROLE_UPDATE", // tenant roles only (enforced in code)
+    "ROLE_UPDATE",   // tenant roles only (enforced in code)
+    "ROLE_DELETE",   // tenant custom roles only (enforced in role.controller.js)
     "ROLE_PERMISSION_ASSIGN",
 
     // ---- Shifts ----
