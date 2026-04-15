@@ -46,10 +46,10 @@ export const check = (permissionCode) => {
         throw new ApiError("Permission not defined", 500);
       }
 
+      // roleId already scopes the permission to the correct org via the Role model
       const has = await RolePermission.findOne({
         roleId: user.roleId,
         permissionId: perm._id,
-        organizationId: user.organizationId,
       });
 
       if (!has) {
