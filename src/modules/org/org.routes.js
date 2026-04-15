@@ -15,8 +15,8 @@ import {
 
 const router = Router();
 
-// Public – initial onboarding (no token required)
-router.post("/", asyncHandler(createOrg));
+// Protected – platform admin creates org with optional bootstrap admin
+router.post("/", protect, asyncHandler(createOrg));
 
 // Authenticated routes
 router.get("/", protect, asyncHandler(listOrg));

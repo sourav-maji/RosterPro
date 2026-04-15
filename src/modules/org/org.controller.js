@@ -1,6 +1,10 @@
 import Organization from "./org.model.js";
 import ApiError from "../../utils/ApiError.js";
 import { ok } from "../../utils/response.js";
+import Role from "../roles/role.model.js";
+import User from "../users/user.model.js";
+import AuthAccount from "../auth/authAccount.model.js";
+import bcrypt from "bcryptjs";
 
 /* ======================================================
    HELPERS
@@ -11,15 +15,17 @@ const isOwnOrg = (req, orgId) =>
   req.user && String(req.user.organizationId) === String(orgId);
 
 /* ======================================================
-   CREATE ORG – PUBLIC BUT SAFE
+   CREATE ORG – PLATFORM ONLY (requires auth when creating with admin)
 ====================================================== */
 export const createOrg = async (req, res, next) => {
   try {
-    const { name, contactEmail } = req.body;
+    const { name, contactEmail, adminName, adminEmail, adminPassword } = req.body;
 
     const exists = await Organization.findOne({
-      name: name?.toLowerCase(),
-      contactEmail: contactEmail?.toLowerCase(),
+      $or: [
+        { name: name?.toLowerCase() },
+        { contactEmail: contactEmail?.toLowerCase() },
+      ],
     });
 
     if (exists) {
@@ -35,7 +41,36 @@ export const createOrg = async (req, res, next) => {
       createdBy: req.user?.id || null,
     });
 
-    return ok(res, org, "Organization created");
+    // ── Bootstrap tenant admin user (optional, only when fields provided) ──
+    let adminUser = null;
+    if (adminName && adminEmail && adminPassword) {
+      // 1. Upsert a TENANT_ADMIN role scoped to this org
+      const tenantAdminRole = await Role.findOneAndUpdate(
+        { code: "TENANT_ADMIN", organizationId: org._id },
+        { name: "Tenant Admin", isSystem: true },
+        { upsert: true, new: true },
+      );
+
+      // 2. Create the admin user
+      adminUser = await User.create({
+        name: adminName,
+        email: adminEmail.toLowerCase(),
+        roleId: tenantAdminRole._id,
+        organizationId: org._id,
+      });
+
+      // 3. Create credentials with mustChangePassword flag
+      const hash = await bcrypt.hash(adminPassword, 10);
+      await AuthAccount.create({
+        userId: adminUser._id,
+        identifier: adminEmail.toLowerCase(),
+        passwordHash: hash,
+        provider: "LOCAL",
+        mustChangePassword: true,
+      });
+    }
+
+    return ok(res, { org, adminUser }, "Organization created");
   } catch (err) {
     next(err);
   }
