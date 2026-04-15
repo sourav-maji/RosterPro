@@ -13,8 +13,10 @@ import shiftRoutes from "./src/modules/shifts/shift.routes.js";
 import shiftReqRoutes from "./src/modules/shiftReq/shiftReq.routes.js";
 import allocRoutes from "./src/modules/alloc/alloc.routes.js";
 import schedulerRoutes from "./src/modules/scheduler/scheduler.routes.js";
-
 import schedulerRunRoutes from "./src/modules/scheduler/scheduleRun.routes.js";
+import roleRoutes from "./src/modules/roles/role.routes.js";
+import rolePermissionRoutes from "./src/modules/roles/role-permission.routes.js";
+import permissionRoutes from "./src/modules/permissions/permission.routes.js";
 
 // Swagger
 import swaggerUi from "swagger-ui-express";
@@ -49,8 +51,10 @@ app.use("/api/v1/shifts", shiftRoutes);
 app.use("/api/v1/shift-req", shiftReqRoutes);
 app.use("/api/v1/alloc", allocRoutes);
 app.use("/api/v1/scheduler", schedulerRoutes);
-
 app.use("/api/v1/scheduler", schedulerRunRoutes);
+app.use("/api/v1/roles", roleRoutes);
+app.use("/api/v1/role-permission", rolePermissionRoutes);
+app.use("/api/v1/permissions", permissionRoutes);
 
 // --------------------------------------------------
 // Swagger UI  (must be BEFORE 404)
