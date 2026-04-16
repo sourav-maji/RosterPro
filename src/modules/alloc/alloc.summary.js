@@ -31,6 +31,7 @@ export const boardByDay = async (req, res, next) => {
       if (!board[s]) board[s] = [];
 
       board[s].push({
+        allocId: a._id,
         userId: a.userId._id,
         name: a.userId.name,
         status: a.status,
