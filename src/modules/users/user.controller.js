@@ -239,21 +239,24 @@ export const changeDepartment = async (req, res, next) => {
   try {
     const { departmentId } = req.body;
 
-    const dep = await Department.findOne({
-      _id: departmentId,
-      organizationId: req.user.organizationId,
-    });
+    // Allow null to unassign user from a department
+    if (departmentId !== null && departmentId !== undefined) {
+      const dep = await Department.findOne({
+        _id: departmentId,
+        organizationId: req.user.organizationId,
+      });
 
-    if (!dep) {
-      throw new ApiError("Invalid department", 400);
+      if (!dep) {
+        throw new ApiError("Invalid department", 400);
+      }
     }
 
     const user = await User.findOneAndUpdate(
       {
         _id: req.params.id,
-        organizationId: req.user.organizationId,
+        ...orgScopeFilter(req),
       },
-      { departmentId },
+      { departmentId: departmentId ?? null },
       { new: true }
     );
 
