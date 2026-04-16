@@ -26,6 +26,12 @@ const schema = new mongoose.Schema(
       ref: "Role",
     },
 
+    departmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+      default: null,
+    },
+
     isActive: {
       type: Boolean,
       default: true,
