@@ -79,6 +79,7 @@ export const saveSchedule = async (req, res, next) => {
       departmentId,
       shiftMap: meta.shiftMap,
       userMap: meta.userMap,
+      weekStart: meta.weekStart,
     });
 
     const dates = [...new Set(records.map((r) => r.date))];

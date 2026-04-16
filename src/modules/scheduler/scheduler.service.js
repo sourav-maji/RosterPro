@@ -51,8 +51,11 @@ export const buildSchedulerJson = async ({
   const staffRoleCodes = new Set(staff.map((s) => s.role));
 
   const userMap = {};
+  const nameMap = {};
   for (const u of users) {
-    userMap[String(u._id)] = String(u._id);
+    const id = String(u._id);
+    userMap[id] = id;
+    nameMap[id] = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email || id;
   }
 
   /* ---------------- REQUIREMENTS ---------------- */
@@ -118,8 +121,10 @@ export const buildSchedulerJson = async ({
 
     // Used ONLY by Node after ML returns
     meta: {
+      weekStart: startDate,
       shiftMap,
       userMap,
+      nameMap,
     },
   };
 };
