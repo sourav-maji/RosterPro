@@ -39,13 +39,16 @@ export const buildSchedulerJson = async ({
   }).populate("roleId");
 
   if (!users.length) {
-    throw new ApiError("No active users in department", 400);
+    throw new ApiError("No active users assigned to this department", 400);
   }
 
   const staff = users.map((u) => ({
     id: String(u._id),
     role: u.roleId?.code || "UNKNOWN",
   }));
+
+  // Set of roles actually present in staff — used to filter requirements
+  const staffRoleCodes = new Set(staff.map((s) => s.role));
 
   const userMap = {};
   for (const u of users) {
@@ -67,9 +70,20 @@ export const buildSchedulerJson = async ({
   const requirements = {};
 
   for (const r of reqs) {
-    const shiftName = r.shiftId.name;
+    const shiftName = r.shiftId?.name;
+    const roleCode  = r.roleId?.code;
+    // Skip requirements for roles not represented in this department's staff
+    if (!shiftName || !roleCode || !staffRoleCodes.has(roleCode)) continue;
     if (!requirements[shiftName]) requirements[shiftName] = {};
-    requirements[shiftName][r.roleId.code] = r.requiredCount;
+    requirements[shiftName][roleCode] = r.requiredCount;
+  }
+
+  if (!Object.keys(requirements).length) {
+    throw new ApiError(
+      "No shift requirements match the staff roles in this department. " +
+      "Assign users with matching roles or update shift requirements.",
+      400,
+    );
   }
 
   /* ---------------- ROLE POLICIES ---------------- */
@@ -87,6 +101,7 @@ export const buildSchedulerJson = async ({
 
   return {
     payload: {
+      weekStart: startDate,   // required by Python model
       days,
       shifts: shiftHours,
       requirements,
